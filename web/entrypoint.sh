@@ -14,7 +14,7 @@ snort -T -c /etc/snort/snort.conf --daq-dir /usr/lib/daq 2>&1 | tail -5 || true
 # Start SNORT di background
 echo "[*] Starting SNORT IDS..."
 mkdir -p /var/log/snort
-snort -D \
+snort \
   -i eth1 \
   -c /etc/snort/snort.conf \
   -l /var/log/snort \
