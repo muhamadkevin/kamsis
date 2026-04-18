@@ -1,0 +1,56 @@
+networks:
+  frontend_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+  backend_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/24
+
+services:
+
+  web:
+    build: ./web
+    container_name: web_server
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      frontend_net:
+        ipv4_address: 172.20.0.10
+      backend_net:
+        ipv4_address: 172.21.0.10
+    depends_on:
+      - db
+
+  db:
+    build: ./db
+    container_name: db_server
+    networks:
+      backend_net:
+        ipv4_address: 172.21.0.20
+    environment:
+      MYSQL_DATABASE: kamsis
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: strongpassword123
+      MYSQL_ROOT_PASSWORD: rootpassword123
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  user:
+    build: ./user
+    container_name: user_client
+    networks:
+      frontend_net:
+        ipv4_address: 172.20.0.30
+    stdin_open: true
+    tty: true
+
+volumes:
+  mysql_data:

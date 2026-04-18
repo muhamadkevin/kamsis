@@ -1,0 +1,50 @@
+# =============================================
+# LOCAL RULES — DB Server
+# Custom rules untuk proteksi database
+# =============================================
+
+# --- Akses MySQL tidak sah (dari luar web server) ---
+alert tcp !172.21.0.10 any -> $SQL_SERVERS $MYSQL_PORTS (\
+    msg:"[DB] Akses MySQL tidak sah - bukan dari web server"; \
+    flow:to_server; \
+    sid:3000001; rev:1; classtype:attempted-user;)
+
+# --- Brute Force MySQL ---
+alert tcp any any -> $SQL_SERVERS $MYSQL_PORTS (\
+    msg:"[DB] MySQL brute force login"; \
+    flow:to_server,established; \
+    detection_filter:track by_src, count 10, seconds 30; \
+    sid:3000010; rev:1; classtype:attempted-user;)
+
+# --- MySQL Protocol error / anomaly ---
+alert tcp any any -> $SQL_SERVERS $MYSQL_PORTS (\
+    msg:"[DB] MySQL payload besar (possible overflow)"; \
+    flow:to_server,established; \
+    dsize:>8192; \
+    sid:3000020; rev:1; classtype:attempted-dos;)
+
+# --- SQL Injection via network ---
+alert tcp any any -> $SQL_SERVERS $MYSQL_PORTS (\
+    msg:"[DB] DROP TABLE attempt via network"; \
+    flow:to_server,established; \
+    pcre:"/DROP\s+TABLE/i"; \
+    sid:3000030; rev:1; classtype:web-application-attack;)
+
+alert tcp any any -> $SQL_SERVERS $MYSQL_PORTS (\
+    msg:"[DB] UNION SELECT attempt via network"; \
+    flow:to_server,established; \
+    pcre:"/UNION\s+SELECT/i"; \
+    sid:3000031; rev:1; classtype:web-application-attack;)
+
+# --- Port Scan pada DB subnet ---
+alert tcp any any -> $HOME_NET any (\
+    msg:"[DB-Recon] TCP port scan on DB subnet"; \
+    flags:S; \
+    detection_filter:track by_src, count 20, seconds 5; \
+    sid:3000040; rev:1; classtype:attempted-recon;)
+
+# --- Koneksi ke port selain MySQL (suspicious) ---
+alert tcp $EXTERNAL_NET any -> $SQL_SERVERS !$MYSQL_PORTS (\
+    msg:"[DB] Koneksi ke port non-MySQL (suspicious)"; \
+    flow:to_server; \
+    sid:3000050; rev:1; classtype:attempted-recon;)

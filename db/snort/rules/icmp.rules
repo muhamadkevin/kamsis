@@ -1,0 +1,53 @@
+# =============================================
+# ICMP RULES — DB Server
+# (Sama dengan web server)
+# =============================================
+
+# Ping biasa
+alert icmp any any -> $HOME_NET any (\
+    msg:"[ICMP] Ping masuk"; \
+    itype:8; icode:0; \
+    sid:2000001; rev:1; classtype:misc-activity;)
+
+# Ping reply keluar
+alert icmp $HOME_NET any -> any any (\
+    msg:"[ICMP] Ping reply"; \
+    itype:0; icode:0; \
+    sid:2000002; rev:1; classtype:misc-activity;)
+
+# ICMP Flood / DoS
+alert icmp any any -> $HOME_NET any (\
+    msg:"[ICMP] Flood DoS attack"; \
+    itype:8; \
+    detection_filter:track by_src, count 50, seconds 5; \
+    sid:2000010; rev:2; classtype:attempted-dos;)
+
+# Ping of Death — packet besar
+alert icmp any any -> $HOME_NET any (\
+    msg:"[ICMP] Ping of Death - packet besar"; \
+    itype:8; dsize:>1024; \
+    sid:2000020; rev:2; classtype:attempted-dos;)
+
+# Traceroute
+alert icmp any any -> $HOME_NET any (\
+    msg:"[ICMP] Traceroute detected"; \
+    itype:11; icode:0; \
+    sid:2000030; rev:1; classtype:attempted-recon;)
+
+# ICMP Redirect — potensi MITM
+alert icmp any any -> $HOME_NET any (\
+    msg:"[ICMP] Redirect - possible MITM"; \
+    itype:5; \
+    sid:2000040; rev:2; classtype:attempted-recon;)
+
+# Destination Unreachable
+alert icmp any any -> $HOME_NET any (\
+    msg:"[ICMP] Destination unreachable"; \
+    itype:3; \
+    sid:2000050; rev:1; classtype:misc-activity;)
+
+# Time Exceeded
+alert icmp any any -> $HOME_NET any (\
+    msg:"[ICMP] Time exceeded"; \
+    itype:11; \
+    sid:2000060; rev:1; classtype:misc-activity;)

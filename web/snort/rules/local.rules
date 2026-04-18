@@ -1,0 +1,83 @@
+# =============================================
+# LOCAL RULES — Custom Rules Buatan Sendiri
+# Untuk proteksi web app & DB
+# =============================================
+
+# --- SQL Injection ---
+alert tcp any any -> $HTTP_SERVERS $HTTP_PORTS (\
+    msg:"[SQLi] UNION SELECT attack"; \
+    flow:to_server,established; \
+    pcre:"/UNION\s+SELECT/i"; \
+    sid:1000001; rev:2; classtype:web-application-attack;)
+
+alert tcp any any -> $HTTP_SERVERS $HTTP_PORTS (\
+    msg:"[SQLi] OR 1=1 bypass"; \
+    flow:to_server,established; \
+    pcre:"/(\s|'|\")OR(\s|'|\").*1\s*=\s*1/i"; \
+    sid:1000002; rev:2; classtype:web-application-attack;)
+
+alert tcp any any -> $HTTP_SERVERS $HTTP_PORTS (\
+    msg:"[SQLi] DROP TABLE attempt"; \
+    flow:to_server,established; \
+    pcre:"/DROP\s+TABLE/i"; \
+    sid:1000003; rev:1; classtype:web-application-attack;)
+
+alert tcp any any -> $HTTP_SERVERS $HTTP_PORTS (\
+    msg:"[SQLi] comment injection"; \
+    flow:to_server,established; \
+    content:"--"; \
+    sid:1000004; rev:1; classtype:web-application-attack;)
+
+# --- XSS ---
+alert tcp any any -> $HTTP_SERVERS $HTTP_PORTS (\
+    msg:"[XSS] script tag detected"; \
+    flow:to_server,established; \
+    pcre:"/<script[\s>]/i"; \
+    sid:1000010; rev:2; classtype:web-application-attack;)
+
+alert tcp any any -> $HTTP_SERVERS $HTTP_PORTS (\
+    msg:"[XSS] onerror/onload event"; \
+    flow:to_server,established; \
+    pcre:"/on(error|load|click|mouseover)\s*=/i"; \
+    sid:1000011; rev:1; classtype:web-application-attack;)
+
+alert tcp any any -> $HTTP_SERVERS $HTTP_PORTS (\
+    msg:"[XSS] javascript: protocol"; \
+    flow:to_server,established; \
+    content:"javascript:"; nocase; \
+    sid:1000012; rev:1; classtype:web-application-attack;)
+
+# --- Brute Force Login ---
+alert tcp any any -> $HTTP_SERVERS $HTTP_PORTS (\
+    msg:"[BruteForce] Login banyak request"; \
+    flow:to_server,established; \
+    content:"POST"; content:"/login"; \
+    detection_filter:track by_src, count 10, seconds 30; \
+    sid:1000020; rev:2; classtype:attempted-user;)
+
+# --- Buffer Overflow ---
+alert tcp any any -> $HTTP_SERVERS $HTTP_PORTS (\
+    msg:"[BufferOverflow] Payload sangat besar"; \
+    flow:to_server,established; \
+    dsize:>8192; \
+    sid:1000030; rev:1; classtype:attempted-dos;)
+
+# --- Akses MySQL dari luar ---
+alert tcp $EXTERNAL_NET any -> $SQL_SERVERS 3306 (\
+    msg:"[DB] Akses MySQL tidak sah"; \
+    flow:to_server; \
+    sid:1000040; rev:1; classtype:attempted-user;)
+
+# --- Port Scan ---
+alert tcp any any -> $HOME_NET any (\
+    msg:"[Recon] TCP port scan"; \
+    flags:S; \
+    detection_filter:track by_src, count 20, seconds 5; \
+    sid:1000050; rev:1; classtype:attempted-recon;)
+
+# --- Path Traversal ---
+alert tcp any any -> $HTTP_SERVERS $HTTP_PORTS (\
+    msg:"[LFI] Path traversal attempt"; \
+    flow:to_server,established; \
+    content:"../"; \
+    sid:1000060; rev:1; classtype:web-application-attack;)

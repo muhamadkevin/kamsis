@@ -1,0 +1,10 @@
+# Enforce LF line endings untuk semua file yang masuk ke Docker
+# Penting agar script bash tidak error di Linux/Docker
+
+* text=auto eol=lf
+
+# Binary files
+*.pem binary
+*.png binary
+*.jpg binary
+*.gif binary

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Login</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #eef2f7;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .card {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            width: 380px;
+        }
+        h2 {
+            text-align: center;
+            color: #4a6fa5;
+            margin-bottom: 1.5rem;
+        }
+        .form-group { margin-bottom: 1rem; }
+        label {
+            display: block;
+            font-size: 0.85rem;
+            color: #666;
+            margin-bottom: 0.3rem;
+        }
+        input {
+            width: 100%;
+            padding: 0.7rem 1rem;
+            border: 1px solid #dde3ee;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            outline: none;
+            transition: border 0.2s;
+        }
+        input:focus { border-color: #4a6fa5; }
+        .btn {
+            width: 100%;
+            padding: 0.8rem;
+            background: #4a6fa5;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            margin-top: 0.5rem;
+            transition: background 0.2s;
+        }
+        .btn:hover { background: #3a5a8f; }
+        .error {
+            background: #ffeaea;
+            color: #c0392b;
+            padding: 0.7rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        .success {
+            background: #eafaf1;
+            color: #27ae60;
+            padding: 0.7rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        .link {
+            text-align: center;
+            margin-top: 1rem;
+            font-size: 0.85rem;
+            color: #888;
+        }
+        .link a { color: #4a6fa5; text-decoration: none; }
+    </style>
+</head>
+<body>
+<div class="card">
+    <h2>🔐 Login</h2>
+
+    {{if .Error}}
+    <div class="error">{{.Error}}</div>
+    {{end}}
+
+    {{if .Success}}
+    <div class="success">{{.Success}}</div>
+    {{end}}
+
+    <form method="POST" action="/login">
+        <div class="form-group">
+            <label>NIM</label>
+            <input type="text" name="nim" 
+                   placeholder="Masukkan NIM" 
+                   maxlength="20" required>
+        </div>
+        <div class="form-group">
+            <label>Password</label>
+            <input type="password" name="password" 
+                   placeholder="Masukkan password" 
+                   maxlength="128" required>
+        </div>
+        <button type="submit" class="btn">Masuk</button>
+    </form>
+    <div class="link">
+        Belum punya akun? <a href="/register">Daftar di sini</a>
+    </div>
+</div>
+</body>
+</html>

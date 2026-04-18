@@ -1,0 +1,14 @@
+# =============================================
+# COMMUNITY RULES — dari Snort.org
+# =============================================
+# File ini untuk menampung rules yang di-download dari:
+# https://www.snort.org/downloads#rules
+#
+# Cara update:
+# 1. Download community rules dari snort.org
+# 2. Ekstrak dan salin isi rules ke file ini
+# 3. Rebuild Docker image
+#
+# Contoh rules bisa didapat dari:
+# https://www.snort.org/downloads/community/community-rules.tar.gz
+# =============================================
