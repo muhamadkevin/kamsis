@@ -198,12 +198,12 @@ func main() {
 	fmt.Println("🚀 Server HTTPS jalan di https://localhost:443")
 
 	// Redirect HTTP ke HTTPS
-	go http.ListenAndServe(":80", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	go http.ListenAndServe("0.0.0.0:80", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "https://"+r.Host+r.URL.String(), http.StatusMovedPermanently)
 	}))
 
 	// HTTPS dengan self-signed cert
-	err := http.ListenAndServeTLS(":443", "/app/certs/cert.pem", "/app/certs/key.pem", nil)
+	err := http.ListenAndServeTLS("0.0.0.0:443", "/app/certs/cert.pem", "/app/certs/key.pem", nil)
 	if err != nil {
 		panic(err)
 	}
