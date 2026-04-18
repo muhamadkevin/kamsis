@@ -39,6 +39,10 @@ RUN mkdir -p /etc/snort/rules /var/log/snort
 COPY snort/snort.conf /etc/snort/snort.conf
 COPY snort/rules/ /etc/snort/rules/
 
+# Fix CRLF line endings (files dari Windows)
+RUN sed -i 's/\r$//' /etc/snort/snort.conf && \
+    find /etc/snort/rules -type f -exec sed -i 's/\r$//' {} \;
+
 # Copy ACL script
 COPY acl.sh /acl.sh
 RUN chmod +x /acl.sh
@@ -50,10 +54,9 @@ COPY --from=builder /app/server ./server
 # Copy templates
 COPY app/templates/ ./templates/
 
-# Copy certs (generated above)
 # Copy entrypoint
 COPY entrypoint.sh /app/entrypoint.sh
-RUN chmod +x /app/entrypoint.sh
+RUN sed -i 's/\r$//' /app/entrypoint.sh /acl.sh && chmod +x /app/entrypoint.sh /acl.sh
 
 EXPOSE 80 443
 ENTRYPOINT ["/app/entrypoint.sh"]
