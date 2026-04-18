@@ -46,6 +46,8 @@ services:
   user:
     build: ./user
     container_name: user_client
+    cap_add:
+      - NET_RAW
     networks:
       frontend_net:
         ipv4_address: 172.20.0.30
