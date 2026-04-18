@@ -4,8 +4,8 @@ set -e
 echo "=== Starting Web Server ==="
 
 # Terapkan ACL (iptables) — non-fatal agar server tetap jalan
-echo "[*] Applying ACL rules..."
-/acl.sh web || echo "[WARN] ACL failed (non-fatal, mungkin butuh NET_ADMIN)"
+echo "[*] Skipping ACL rules for testing..."
+# /acl.sh web || echo "[WARN] ACL failed (non-fatal, mungkin butuh NET_ADMIN)"
 
 # Test Snort config dulu
 echo "[*] Testing SNORT config..."
