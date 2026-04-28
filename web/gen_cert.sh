@@ -9,7 +9,7 @@ mkdir -p "$CERT_DIR"
 
 echo "[*] Generating self-signed SSL certificate..."
 
-openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+openssl req -x509 -nodes -days 365 -newkey rsa:4096 \
     -keyout "$CERT_DIR/key.pem" \
     -out "$CERT_DIR/cert.pem" \
     -subj "/C=ID/ST=Jakarta/L=Jakarta/O=Kamsis/CN=localhost"
