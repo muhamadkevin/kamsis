@@ -29,7 +29,7 @@ RUN apt-get update -o Acquire::Check-Valid-Until=false && \
 
 # Generate SSL cert
 RUN mkdir -p /app/certs && \
-    openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+    openssl req -x509 -nodes -days 365 -newkey rsa:4096 \
     -keyout /app/certs/key.pem \
     -out /app/certs/cert.pem \
     -subj "/C=ID/ST=Jakarta/L=Jakarta/O=Kamsis/CN=localhost"

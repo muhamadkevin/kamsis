@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"net/http"
 	"strconv"
+	"sync"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -15,6 +16,19 @@ import (
 var db *sql.DB
 var tmpl = template.Must(template.ParseGlob("templates/*.html"))
 var sessions = map[string]string{}
+
+// Anti Brute Force — rate limiter per NIM
+type LoginAttempt struct {
+	Count    int
+	LockedAt time.Time
+}
+
+var (
+	loginAttempts = map[string]*LoginAttempt{}
+	loginMu       sync.Mutex
+	maxAttempts   = 5
+	lockDuration  = 5 * time.Minute
+)
 
 type User struct {
 	ID         int
@@ -122,6 +136,23 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Anti Brute Force — cek apakah NIM sedang di-lock
+	loginMu.Lock()
+	attempt, exists := loginAttempts[nim]
+	if exists && attempt.Count >= maxAttempts {
+		remaining := lockDuration - time.Since(attempt.LockedAt)
+		if remaining > 0 {
+			loginMu.Unlock()
+			menit := int(remaining.Minutes()) + 1
+			msg := fmt.Sprintf("Akun terkunci karena terlalu banyak percobaan login gagal. Coba lagi dalam %d menit.", menit)
+			tmpl.ExecuteTemplate(w, "login.html", map[string]string{"Error": msg})
+			return
+		}
+		// Lock sudah expired, reset counter
+		attempt.Count = 0
+	}
+	loginMu.Unlock()
+
 	// Anti SQL Injection — prepared statement
 	var user User
 	err := db.QueryRow(
@@ -129,6 +160,17 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	).Scan(&user.ID, &user.Nama, &user.NIM, &user.Password)
 
 	if err != nil {
+		// Catat percobaan gagal
+		loginMu.Lock()
+		if loginAttempts[nim] == nil {
+			loginAttempts[nim] = &LoginAttempt{}
+		}
+		loginAttempts[nim].Count++
+		if loginAttempts[nim].Count >= maxAttempts {
+			loginAttempts[nim].LockedAt = time.Now()
+			fmt.Printf("[BRUTE FORCE] NIM %s terkunci setelah %d percobaan gagal\n", nim, maxAttempts)
+		}
+		loginMu.Unlock()
 		tmpl.ExecuteTemplate(w, "login.html", map[string]string{"Error": "NIM atau password salah!"})
 		return
 	}
@@ -136,9 +178,25 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	// Verifikasi hash
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
 	if err != nil {
+		// Catat percobaan gagal (password salah)
+		loginMu.Lock()
+		if loginAttempts[nim] == nil {
+			loginAttempts[nim] = &LoginAttempt{}
+		}
+		loginAttempts[nim].Count++
+		if loginAttempts[nim].Count >= maxAttempts {
+			loginAttempts[nim].LockedAt = time.Now()
+			fmt.Printf("[BRUTE FORCE] NIM %s terkunci setelah %d percobaan gagal\n", nim, maxAttempts)
+		}
+		loginMu.Unlock()
 		tmpl.ExecuteTemplate(w, "login.html", map[string]string{"Error": "NIM atau password salah!"})
 		return
 	}
+
+	// Login berhasil — reset counter brute force
+	loginMu.Lock()
+	delete(loginAttempts, nim)
+	loginMu.Unlock()
 
 	sessionID := fmt.Sprintf("sess-%d", user.ID)
 	sessions[sessionID] = user.Nama
