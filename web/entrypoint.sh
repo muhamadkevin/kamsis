@@ -14,16 +14,23 @@ snort -T -c /etc/snort/snort.conf --daq-dir /usr/lib/daq 2>&1 | tail -5 || true
 # Start SNORT di background
 echo "[*] Starting SNORT IDS..."
 mkdir -p /var/log/snort
+touch /var/log/snort/alert
+
+# List semua interfaces untuk debug
+echo "[*] Available network interfaces:"
+ip addr show | grep -E "^[0-9]+:|inet " || ifconfig 2>/dev/null || true
+
 snort \
-  -i eth0 \
+  -i any \
   -c /etc/snort/snort.conf \
   -l /var/log/snort \
   -A fast \
   --daq-dir /usr/lib/daq \
-  > /dev/null 2>/var/log/snort/snort_startup.log &
+  -D \
+  2>/var/log/snort/snort_startup.log || true
 
 # Cek apakah Snort jalan
-sleep 1
+sleep 2
 if pgrep -x snort > /dev/null; then
     echo "[OK] SNORT is running (PID: $(pgrep -x snort))"
 else
