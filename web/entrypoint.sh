@@ -15,7 +15,7 @@ snort -T -c /etc/snort/snort.conf --daq-dir /usr/lib/daq 2>&1 | tail -5 || true
 echo "[*] Starting SNORT IDS..."
 mkdir -p /var/log/snort
 snort \
-  -i eth1 \
+  -i eth0 \
   -c /etc/snort/snort.conf \
   -l /var/log/snort \
   -A fast \
