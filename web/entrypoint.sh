@@ -22,7 +22,7 @@ ip addr show | grep -E "^[0-9]+:|inet " || ifconfig 2>/dev/null || true
 
 # Coba start Snort di setiap interface sampai berhasil
 SNORT_STARTED=false
-for IFACE in eth0 eth1 lo; do
+for IFACE in eth1 eth0 lo; do
     echo "[*] Trying Snort on interface: $IFACE"
     snort \
       -i "$IFACE" \

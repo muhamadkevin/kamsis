@@ -14,7 +14,7 @@ services:
 
   web:
     build: ./web
-    container_name: web_server
+    container_name: 101032300243web_server
     cap_add:
       - NET_ADMIN
       - NET_RAW
@@ -31,7 +31,7 @@ services:
 
   db:
     build: ./db
-    container_name: db_server
+    container_name: 101032300243db_server
     networks:
       backend_net:
         ipv4_address: 172.21.0.20
@@ -45,7 +45,7 @@ services:
 
   user:
     build: ./user
-    container_name: user_client
+    container_name: 101032300243user_client
     cap_add:
       - NET_RAW
     networks:
