@@ -2,88 +2,93 @@
 # LOCAL RULES — Custom IDS/IPS Rules
 # Kamsis Web Application Protection
 # =============================================
-# alert = DETECT saja (IDS)
-# drop  = DETECT + BLOCK (IPS, butuh inline mode)
+# Semua rules menggunakan "alert" agar kompatibel dengan
+# mode pcap (passive). Reactive IPS watcher di entrypoint.sh
+# akan mendeteksi prefix [IPS-] dan otomatis memblokir
+# IP penyerang menggunakan iptables.
+#
+# [IPS-...] = Serangan akan di-BLOCK (IP penyerang di-ban)
+# [IDS-...] = Hanya DETECT dan catat di log
 # =============================================
 
 # ===================
-# SQL INJECTION (SQLi) — IPS: DROP
+# SQL INJECTION (SQLi) — IPS: BLOCK IP
 # ===================
 
-drop tcp any any -> any $HTTP_PORTS (msg:"[IPS-SQLi] UNION SELECT blocked"; content:"UNION"; nocase; content:"SELECT"; nocase; distance:0; within:20; sid:1000001; rev:4; classtype:web-application-attack;)
+alert tcp any any -> any $HTTP_PORTS (msg:"[IPS-SQLi] UNION SELECT blocked"; content:"UNION"; nocase; content:"SELECT"; nocase; distance:0; within:20; sid:1000001; rev:5; classtype:web-application-attack;)
 
-drop tcp any any -> any $HTTP_PORTS (msg:"[IPS-SQLi] OR 1=1 bypass blocked"; content:"OR"; nocase; content:"1=1"; distance:0; within:15; sid:1000002; rev:4; classtype:web-application-attack;)
+alert tcp any any -> any $HTTP_PORTS (msg:"[IPS-SQLi] OR 1=1 bypass blocked"; content:"OR"; nocase; content:"1=1"; distance:0; within:15; sid:1000002; rev:5; classtype:web-application-attack;)
 
-drop tcp any any -> any $HTTP_PORTS (msg:"[IPS-SQLi] DROP TABLE blocked"; content:"DROP"; nocase; content:"TABLE"; nocase; distance:0; within:15; sid:1000003; rev:3; classtype:web-application-attack;)
+alert tcp any any -> any $HTTP_PORTS (msg:"[IPS-SQLi] DROP TABLE blocked"; content:"DROP"; nocase; content:"TABLE"; nocase; distance:0; within:15; sid:1000003; rev:4; classtype:web-application-attack;)
 
-drop tcp any any -> any $HTTP_PORTS (msg:"[IPS-SQLi] SQL comment injection blocked"; content:"--"; sid:1000004; rev:3; classtype:web-application-attack;)
+alert tcp any any -> any $HTTP_PORTS (msg:"[IPS-SQLi] SQL comment injection blocked"; content:"--"; sid:1000004; rev:4; classtype:web-application-attack;)
 
-drop tcp any any -> any $HTTP_PORTS (msg:"[IPS-SQLi] Single quote OR injection blocked"; content:"' OR "; nocase; sid:1000005; rev:2; classtype:web-application-attack;)
+alert tcp any any -> any $HTTP_PORTS (msg:"[IPS-SQLi] Single quote OR injection blocked"; content:"' OR "; nocase; sid:1000005; rev:3; classtype:web-application-attack;)
 
-drop tcp any any -> any $HTTP_PORTS (msg:"[IPS-SQLi] INSERT INTO blocked"; content:"INSERT"; nocase; content:"INTO"; nocase; distance:0; within:15; sid:1000006; rev:2; classtype:web-application-attack;)
+alert tcp any any -> any $HTTP_PORTS (msg:"[IPS-SQLi] INSERT INTO blocked"; content:"INSERT"; nocase; content:"INTO"; nocase; distance:0; within:15; sid:1000006; rev:3; classtype:web-application-attack;)
 
-drop tcp any any -> any $HTTP_PORTS (msg:"[IPS-SQLi] DELETE FROM blocked"; content:"DELETE"; nocase; content:"FROM"; nocase; distance:0; within:15; sid:1000007; rev:2; classtype:web-application-attack;)
+alert tcp any any -> any $HTTP_PORTS (msg:"[IPS-SQLi] DELETE FROM blocked"; content:"DELETE"; nocase; content:"FROM"; nocase; distance:0; within:15; sid:1000007; rev:3; classtype:web-application-attack;)
 
-drop tcp any any -> any $HTTP_PORTS (msg:"[IPS-SQLi] SLEEP time-based blind SQLi blocked"; content:"SLEEP"; nocase; content:"("; distance:0; within:5; sid:1000008; rev:2; classtype:web-application-attack;)
+alert tcp any any -> any $HTTP_PORTS (msg:"[IPS-SQLi] SLEEP time-based blind SQLi blocked"; content:"SLEEP"; nocase; content:"("; distance:0; within:5; sid:1000008; rev:3; classtype:web-application-attack;)
 
-drop tcp any any -> any $HTTP_PORTS (msg:"[IPS-SQLi] information_schema access blocked"; content:"information_schema"; nocase; sid:1000009; rev:2; classtype:web-application-attack;)
-
-# ===================
-# CROSS-SITE SCRIPTING (XSS) — IPS: DROP
-# ===================
-
-drop tcp any any -> any $HTTP_PORTS (msg:"[IPS-XSS] Script tag blocked"; content:"<script"; nocase; sid:1000010; rev:4; classtype:web-application-attack;)
-
-drop tcp any any -> any $HTTP_PORTS (msg:"[IPS-XSS] Closing script tag blocked"; content:"</script"; nocase; sid:1000013; rev:2; classtype:web-application-attack;)
-
-drop tcp any any -> any $HTTP_PORTS (msg:"[IPS-XSS] onerror handler blocked"; content:"onerror"; nocase; content:"="; distance:0; within:5; sid:1000011; rev:3; classtype:web-application-attack;)
-
-drop tcp any any -> any $HTTP_PORTS (msg:"[IPS-XSS] onload handler blocked"; content:"onload"; nocase; content:"="; distance:0; within:5; sid:1000014; rev:2; classtype:web-application-attack;)
-
-drop tcp any any -> any $HTTP_PORTS (msg:"[IPS-XSS] onclick handler blocked"; content:"onclick"; nocase; content:"="; distance:0; within:5; sid:1000015; rev:2; classtype:web-application-attack;)
-
-drop tcp any any -> any $HTTP_PORTS (msg:"[IPS-XSS] onmouseover handler blocked"; content:"onmouseover"; nocase; content:"="; distance:0; within:5; sid:1000016; rev:2; classtype:web-application-attack;)
-
-drop tcp any any -> any $HTTP_PORTS (msg:"[IPS-XSS] javascript: protocol blocked"; content:"javascript"; nocase; content:":"; distance:0; within:3; sid:1000012; rev:3; classtype:web-application-attack;)
-
-drop tcp any any -> any $HTTP_PORTS (msg:"[IPS-XSS] alert() function blocked"; content:"alert("; nocase; sid:1000017; rev:2; classtype:web-application-attack;)
-
-drop tcp any any -> any $HTTP_PORTS (msg:"[IPS-XSS] document.cookie theft blocked"; content:"document.cookie"; nocase; sid:1000018; rev:2; classtype:web-application-attack;)
-
-drop tcp any any -> any $HTTP_PORTS (msg:"[IPS-XSS] eval() function blocked"; content:"eval("; nocase; sid:1000019; rev:2; classtype:web-application-attack;)
+alert tcp any any -> any $HTTP_PORTS (msg:"[IPS-SQLi] information_schema access blocked"; content:"information_schema"; nocase; sid:1000009; rev:3; classtype:web-application-attack;)
 
 # ===================
-# PATH TRAVERSAL / LFI — IPS: DROP
+# CROSS-SITE SCRIPTING (XSS) — IPS: BLOCK IP
 # ===================
 
-drop tcp any any -> any $HTTP_PORTS (msg:"[IPS-LFI] Path traversal ../ blocked"; content:"../"; sid:1000060; rev:3; classtype:web-application-attack;)
+alert tcp any any -> any $HTTP_PORTS (msg:"[IPS-XSS] Script tag blocked"; content:"<script"; nocase; sid:1000010; rev:5; classtype:web-application-attack;)
 
-drop tcp any any -> any $HTTP_PORTS (msg:"[IPS-LFI] Path traversal ..%5c blocked"; content:"..%5c"; nocase; sid:1000061; rev:2; classtype:web-application-attack;)
+alert tcp any any -> any $HTTP_PORTS (msg:"[IPS-XSS] Closing script tag blocked"; content:"</script"; nocase; sid:1000013; rev:3; classtype:web-application-attack;)
 
-# ===================
-# COMMAND INJECTION — IPS: DROP
-# ===================
+alert tcp any any -> any $HTTP_PORTS (msg:"[IPS-XSS] onerror handler blocked"; content:"onerror"; nocase; content:"="; distance:0; within:5; sid:1000011; rev:4; classtype:web-application-attack;)
 
-drop tcp any any -> any $HTTP_PORTS (msg:"[IPS-CMDi] /etc/passwd access blocked"; content:"/etc/passwd"; sid:1000071; rev:2; classtype:web-application-attack;)
+alert tcp any any -> any $HTTP_PORTS (msg:"[IPS-XSS] onload handler blocked"; content:"onload"; nocase; content:"="; distance:0; within:5; sid:1000014; rev:3; classtype:web-application-attack;)
 
-drop tcp any any -> any $HTTP_PORTS (msg:"[IPS-CMDi] /bin/sh execution blocked"; content:"/bin/sh"; sid:1000072; rev:2; classtype:web-application-attack;)
+alert tcp any any -> any $HTTP_PORTS (msg:"[IPS-XSS] onclick handler blocked"; content:"onclick"; nocase; content:"="; distance:0; within:5; sid:1000015; rev:3; classtype:web-application-attack;)
 
-# ===================
-# BRUTE FORCE LOGIN — IDS: ALERT (detect only)
-# ===================
-alert tcp any any -> any $HTTP_PORTS (msg:"[IDS-BruteForce] Banyak POST /login"; content:"POST"; content:"/login"; detection_filter:track by_src, count 10, seconds 30; sid:1000020; rev:4; classtype:attempted-user;)
+alert tcp any any -> any $HTTP_PORTS (msg:"[IPS-XSS] onmouseover handler blocked"; content:"onmouseover"; nocase; content:"="; distance:0; within:5; sid:1000016; rev:3; classtype:web-application-attack;)
 
-# ===================
-# BUFFER OVERFLOW — IPS: DROP
-# ===================
-drop tcp any any -> any $HTTP_PORTS (msg:"[IPS-BufferOverflow] Payload HTTP >8KB blocked"; dsize:>8192; sid:1000030; rev:3; classtype:attempted-dos;)
+alert tcp any any -> any $HTTP_PORTS (msg:"[IPS-XSS] javascript: protocol blocked"; content:"javascript"; nocase; content:":"; distance:0; within:3; sid:1000012; rev:4; classtype:web-application-attack;)
+
+alert tcp any any -> any $HTTP_PORTS (msg:"[IPS-XSS] alert() function blocked"; content:"alert("; nocase; sid:1000017; rev:3; classtype:web-application-attack;)
+
+alert tcp any any -> any $HTTP_PORTS (msg:"[IPS-XSS] document.cookie theft blocked"; content:"document.cookie"; nocase; sid:1000018; rev:3; classtype:web-application-attack;)
+
+alert tcp any any -> any $HTTP_PORTS (msg:"[IPS-XSS] eval() function blocked"; content:"eval("; nocase; sid:1000019; rev:3; classtype:web-application-attack;)
 
 # ===================
-# DATABASE ACCESS — IDS: ALERT
+# PATH TRAVERSAL / LFI — IPS: BLOCK IP
 # ===================
-alert tcp any any -> any 3306 (msg:"[IDS-DB] Koneksi MySQL terdeteksi"; sid:1000040; rev:3; classtype:attempted-user;)
+
+alert tcp any any -> any $HTTP_PORTS (msg:"[IPS-LFI] Path traversal ../ blocked"; content:"../"; sid:1000060; rev:4; classtype:web-application-attack;)
+
+alert tcp any any -> any $HTTP_PORTS (msg:"[IPS-LFI] Path traversal ..%5c blocked"; content:"..%5c"; nocase; sid:1000061; rev:3; classtype:web-application-attack;)
 
 # ===================
-# PORT SCAN — IDS: ALERT
+# COMMAND INJECTION — IPS: BLOCK IP
 # ===================
-alert tcp any any -> any any (msg:"[IDS-Recon] TCP SYN port scan"; flags:S; detection_filter:track by_src, count 20, seconds 5; sid:1000050; rev:3; classtype:attempted-recon;)
+
+alert tcp any any -> any $HTTP_PORTS (msg:"[IPS-CMDi] /etc/passwd access blocked"; content:"/etc/passwd"; sid:1000071; rev:3; classtype:web-application-attack;)
+
+alert tcp any any -> any $HTTP_PORTS (msg:"[IPS-CMDi] /bin/sh execution blocked"; content:"/bin/sh"; sid:1000072; rev:3; classtype:web-application-attack;)
+
+# ===================
+# BRUTE FORCE LOGIN — IDS: DETECT ONLY
+# ===================
+alert tcp any any -> any $HTTP_PORTS (msg:"[IDS-BruteForce] Banyak POST /login"; content:"POST"; content:"/login"; detection_filter:track by_src, count 10, seconds 30; sid:1000020; rev:5; classtype:attempted-user;)
+
+# ===================
+# BUFFER OVERFLOW — IPS: BLOCK IP
+# ===================
+alert tcp any any -> any $HTTP_PORTS (msg:"[IPS-BufferOverflow] Payload HTTP >8KB blocked"; dsize:>8192; sid:1000030; rev:4; classtype:attempted-dos;)
+
+# ===================
+# DATABASE ACCESS — IDS: DETECT ONLY
+# ===================
+alert tcp any any -> any 3306 (msg:"[IDS-DB] Koneksi MySQL terdeteksi"; sid:1000040; rev:4; classtype:attempted-user;)
+
+# ===================
+# PORT SCAN — IDS: DETECT ONLY
+# ===================
+alert tcp any any -> any any (msg:"[IDS-Recon] TCP SYN port scan"; flags:S; detection_filter:track by_src, count 20, seconds 5; sid:1000050; rev:4; classtype:attempted-recon;)
