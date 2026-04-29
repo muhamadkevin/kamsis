@@ -3,55 +3,86 @@ set -e
 
 echo "=== Starting Web Server ==="
 
-# Terapkan ACL (iptables) — non-fatal agar server tetap jalan
+# Terapkan ACL (iptables)
 echo "[*] Applying ACL rules..."
-/acl.sh web || echo "[WARN] ACL failed (non-fatal, mungkin butuh NET_ADMIN)"
+/acl.sh web || echo "[WARN] ACL failed (non-fatal)"
 
-# Test Snort config dulu
+# Test Snort config
 echo "[*] Testing SNORT config..."
-snort -T -c /etc/snort/snort.conf --daq-dir /usr/lib/daq 2>&1 | tail -5
-SNORT_TEST=$?
+snort -T -c /etc/snort/snort.conf --daq pcap --daq-dir /usr/lib/daq 2>&1 | tail -5 || true
 
-if [ $SNORT_TEST -ne 0 ]; then
-    echo "[WARN] Snort config test FAILED! Lihat error di atas."
-fi
-
-# Start SNORT di background
-echo "[*] Starting SNORT IDS..."
+# Setup Snort
+echo "[*] Starting SNORT..."
 mkdir -p /var/log/snort
 touch /var/log/snort/alert
 
-# List semua interfaces untuk debug
-echo "[*] Available network interfaces:"
-ifconfig 2>/dev/null | grep -E "^[a-z]|inet " || ip addr show 2>/dev/null | grep -E "^[0-9]+:|inet " || true
+# Show interfaces
+echo "[*] Network interfaces:"
+ifconfig 2>/dev/null | grep -E "^[a-z]|inet " || true
 
-# Coba start Snort di setiap interface sampai berhasil
+# =============================================
+# COBA IPS MODE (inline dengan NFQUEUE)
+# =============================================
 SNORT_STARTED=false
-for IFACE in eth1 eth0; do
-    echo "[*] Trying Snort on interface: $IFACE"
-    snort \
-      -i "$IFACE" \
-      -c /etc/snort/snort.conf \
-      -l /var/log/snort \
-      -A fast \
-      --daq-dir /usr/lib/daq \
-      > /var/log/snort/snort_stdout.log 2>/var/log/snort/snort_startup.log &
 
-    sleep 3
+echo "[*] Attempting IPS mode (inline/nfq)..."
 
-    if pgrep -x snort > /dev/null; then
-        echo "[OK] SNORT is running on $IFACE (PID: $(pgrep -x snort))"
-        SNORT_STARTED=true
-        break
-    else
-        echo "[FAIL] Snort gagal di $IFACE"
-        cat /var/log/snort/snort_startup.log 2>/dev/null | tail -5 || true
-    fi
-done
+# Tambah iptables NFQUEUE untuk port 80 (HTTP only, HTTPS tidak bisa diinspeksi)
+iptables -I INPUT 1 -p tcp --dport 80 -j NFQUEUE --queue-num 0 2>/dev/null || true
+
+# Start Snort dalam inline mode
+snort -Q \
+  --daq nfq \
+  --daq-var queue=0 \
+  --daq-dir /usr/lib/daq \
+  -c /etc/snort/snort.conf \
+  -l /var/log/snort \
+  -A fast \
+  > /var/log/snort/snort_stdout.log 2>/var/log/snort/snort_startup.log &
+
+sleep 3
+
+if pgrep -x snort > /dev/null; then
+    echo "[OK] SNORT IPS running (PID: $(pgrep -x snort)) — DROP rules aktif!"
+    SNORT_STARTED=true
+else
+    echo "[WARN] IPS mode gagal, removing NFQUEUE rule..."
+    iptables -D INPUT -p tcp --dport 80 -j NFQUEUE --queue-num 0 2>/dev/null || true
+    cat /var/log/snort/snort_startup.log 2>/dev/null | tail -3 || true
+fi
+
+# =============================================
+# FALLBACK: IDS MODE (passive dengan pcap)
+# =============================================
+if [ "$SNORT_STARTED" = false ]; then
+    echo "[*] Falling back to IDS mode (pcap/passive)..."
+
+    for IFACE in eth1 eth0; do
+        echo "[*] Trying IDS on interface: $IFACE"
+        snort \
+          -i "$IFACE" \
+          --daq pcap \
+          --daq-dir /usr/lib/daq \
+          -c /etc/snort/snort.conf \
+          -l /var/log/snort \
+          -A fast \
+          > /var/log/snort/snort_stdout.log 2>/var/log/snort/snort_startup.log &
+
+        sleep 3
+
+        if pgrep -x snort > /dev/null; then
+            echo "[OK] SNORT IDS running on $IFACE (PID: $(pgrep -x snort)) — ALERT only"
+            SNORT_STARTED=true
+            break
+        else
+            echo "[FAIL] Snort gagal di $IFACE"
+            cat /var/log/snort/snort_startup.log 2>/dev/null | tail -3 || true
+        fi
+    done
+fi
 
 if [ "$SNORT_STARTED" = false ]; then
-    echo "[WARN] SNORT gagal start di semua interface!"
-    cat /var/log/snort/snort_startup.log 2>/dev/null || true
+    echo "[WARN] SNORT tidak bisa start sama sekali!"
 fi
 
 echo "[*] Starting Go HTTPS server..."

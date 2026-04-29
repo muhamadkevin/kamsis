@@ -17,7 +17,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN echo "deb http://archive.debian.org/debian buster main" > /etc/apt/sources.list && \
     echo "deb http://archive.debian.org/debian-security buster/updates main" >> /etc/apt/sources.list
 
-# Install Snort, iptables, openssl, and tools
+# Install Snort, iptables, openssl, and tools (+ libnetfilter-queue for IPS)
 RUN apt-get update -o Acquire::Check-Valid-Until=false && \
     apt-get install -y --no-install-recommends \
     snort \
@@ -25,6 +25,7 @@ RUN apt-get update -o Acquire::Check-Valid-Until=false && \
     openssl \
     curl \
     procps \
+    libnetfilter-queue1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Generate SSL cert
@@ -38,6 +39,14 @@ RUN mkdir -p /app/certs && \
 RUN mkdir -p /etc/snort/rules /var/log/snort
 COPY snort/snort.conf /etc/snort/snort.conf
 COPY snort/rules/ /etc/snort/rules/
+
+# Download community rules dari snort.org (overwrite placeholder)
+RUN curl -sL https://www.snort.org/downloads/community/community-rules.tar.gz \
+    -o /tmp/community.tar.gz && \
+    tar xzf /tmp/community.tar.gz -C /tmp/ && \
+    cp /tmp/community-rules/community.rules /etc/snort/rules/community.rules && \
+    rm -rf /tmp/community.tar.gz /tmp/community-rules/ || \
+    echo "[WARN] Community rules download gagal, pakai placeholder"
 
 # Fix CRLF line endings (files dari Windows)
 RUN sed -i 's/\r$//' /etc/snort/snort.conf && \
