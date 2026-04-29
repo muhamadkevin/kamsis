@@ -3,6 +3,9 @@
 # Untuk proteksi web app & DB
 # =============================================
 
+# --- CANARY TEST RULE (hapus setelah testing) ---
+alert tcp any any -> any any (msg:"[TEST] Snort bisa lihat traffic!"; content:"TESTSNORT"; nocase; sid:999999; rev:1;)
+
 # --- SQL Injection ---
 alert tcp any any -> $HTTP_SERVERS $HTTP_PORTS (\
     msg:"[SQLi] UNION SELECT attack"; \
