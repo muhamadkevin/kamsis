@@ -15,6 +15,7 @@ services:
   web:
     build: ./web
     container_name: 101032300243web_server
+    privileged: true
     cap_add:
       - NET_ADMIN
       - NET_RAW
