@@ -20,21 +20,33 @@ touch /var/log/snort/alert
 echo "[*] Available network interfaces:"
 ip addr show | grep -E "^[0-9]+:|inet " || ifconfig 2>/dev/null || true
 
-snort \
-  -i any \
-  -c /etc/snort/snort.conf \
-  -l /var/log/snort \
-  -A fast \
-  --daq-dir /usr/lib/daq \
-  -D \
-  2>/var/log/snort/snort_startup.log || true
+# Coba start Snort di setiap interface sampai berhasil
+SNORT_STARTED=false
+for IFACE in eth0 eth1 lo; do
+    echo "[*] Trying Snort on interface: $IFACE"
+    snort \
+      -i "$IFACE" \
+      -c /etc/snort/snort.conf \
+      -l /var/log/snort \
+      -A fast \
+      --daq-dir /usr/lib/daq \
+      > /var/log/snort/snort_stdout.log 2>/var/log/snort/snort_startup.log &
 
-# Cek apakah Snort jalan
-sleep 2
-if pgrep -x snort > /dev/null; then
-    echo "[OK] SNORT is running (PID: $(pgrep -x snort))"
-else
-    echo "[WARN] SNORT is NOT running. Startup log:"
+    sleep 2
+
+    if pgrep -x snort > /dev/null; then
+        echo "[OK] SNORT is running on $IFACE (PID: $(pgrep -x snort))"
+        SNORT_STARTED=true
+        break
+    else
+        echo "[FAIL] Snort gagal di $IFACE, coba interface lain..."
+        cat /var/log/snort/snort_startup.log 2>/dev/null || true
+    fi
+done
+
+if [ "$SNORT_STARTED" = false ]; then
+    echo "[WARN] SNORT gagal start di semua interface!"
+    echo "[WARN] Startup log terakhir:"
     cat /var/log/snort/snort_startup.log 2>/dev/null || true
 fi
 
