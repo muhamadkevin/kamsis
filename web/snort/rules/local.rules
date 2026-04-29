@@ -1,86 +1,113 @@
 # =============================================
-# LOCAL RULES — Custom Rules Buatan Sendiri
-# Untuk proteksi web app & DB
+# LOCAL RULES — Custom IDS/IPS Rules
+# Kamsis Web Application Protection
+# =============================================
+# CATATAN: Semua rules ini TANPA keyword "flow"
+# agar tidak membutuhkan preprocessor stream5.
 # =============================================
 
-# --- CANARY TEST RULE (hapus setelah testing) ---
-alert tcp any any -> any any (msg:"[TEST] Snort bisa lihat traffic!"; content:"TESTSNORT"; nocase; sid:999999; rev:1;)
+# ===================
+# CANARY TEST (hapus setelah testing selesai)
+# ===================
+alert tcp any any -> any any (msg:"[TEST] Snort is ALIVE - canary test"; content:"TESTSNORT"; nocase; sid:999999; rev:1;)
 
-# --- SQL Injection ---
-alert tcp any any -> $HTTP_SERVERS $HTTP_PORTS (\
-    msg:"[SQLi] UNION SELECT attack"; \
-    flow:to_server,established; \
-    pcre:"/UNION\s+SELECT/i"; \
-    sid:1000001; rev:2; classtype:web-application-attack;)
+# ===================
+# SQL INJECTION (SQLi)
+# ===================
 
-alert tcp any any -> $HTTP_SERVERS $HTTP_PORTS (\
-    msg:"[SQLi] OR 1=1 bypass"; \
-    flow:to_server,established; \
-    pcre:"/(\s|'|\")OR(\s|'|\").*1\s*=\s*1/i"; \
-    sid:1000002; rev:2; classtype:web-application-attack;)
+# SQLi: UNION SELECT (URL encoded: + atau %20 sebagai spasi)
+alert tcp any any -> any $HTTP_PORTS (msg:"[SQLi] UNION SELECT attack detected"; content:"UNION"; nocase; content:"SELECT"; nocase; distance:0; within:20; sid:1000001; rev:3; classtype:web-application-attack;)
 
-alert tcp any any -> $HTTP_SERVERS $HTTP_PORTS (\
-    msg:"[SQLi] DROP TABLE attempt"; \
-    flow:to_server,established; \
-    pcre:"/DROP\s+TABLE/i"; \
-    sid:1000003; rev:1; classtype:web-application-attack;)
+# SQLi: OR 1=1 bypass
+alert tcp any any -> any $HTTP_PORTS (msg:"[SQLi] OR 1=1 bypass attempt"; content:"OR"; nocase; content:"1=1"; distance:0; within:15; sid:1000002; rev:3; classtype:web-application-attack;)
 
-alert tcp any any -> $HTTP_SERVERS $HTTP_PORTS (\
-    msg:"[SQLi] comment injection"; \
-    flow:to_server,established; \
-    content:"--"; \
-    sid:1000004; rev:1; classtype:web-application-attack;)
+# SQLi: DROP TABLE
+alert tcp any any -> any $HTTP_PORTS (msg:"[SQLi] DROP TABLE attempt"; content:"DROP"; nocase; content:"TABLE"; nocase; distance:0; within:15; sid:1000003; rev:2; classtype:web-application-attack;)
 
-# --- XSS ---
-alert tcp any any -> $HTTP_SERVERS $HTTP_PORTS (\
-    msg:"[XSS] script tag detected"; \
-    flow:to_server,established; \
-    pcre:"/<script[\s>]/i"; \
-    sid:1000010; rev:2; classtype:web-application-attack;)
+# SQLi: Comment injection (--)
+alert tcp any any -> any $HTTP_PORTS (msg:"[SQLi] SQL comment injection (--)"; content:"--"; sid:1000004; rev:2; classtype:web-application-attack;)
 
-alert tcp any any -> $HTTP_SERVERS $HTTP_PORTS (\
-    msg:"[XSS] onerror/onload event"; \
-    flow:to_server,established; \
-    pcre:"/on(error|load|click|mouseover)\s*=/i"; \
-    sid:1000011; rev:1; classtype:web-application-attack;)
+# SQLi: Single quote injection
+alert tcp any any -> any $HTTP_PORTS (msg:"[SQLi] Single quote injection"; content:"' OR "; nocase; sid:1000005; rev:1; classtype:web-application-attack;)
 
-alert tcp any any -> $HTTP_SERVERS $HTTP_PORTS (\
-    msg:"[XSS] javascript: protocol"; \
-    flow:to_server,established; \
-    content:"javascript:"; nocase; \
-    sid:1000012; rev:1; classtype:web-application-attack;)
+# SQLi: INSERT INTO
+alert tcp any any -> any $HTTP_PORTS (msg:"[SQLi] INSERT INTO attempt"; content:"INSERT"; nocase; content:"INTO"; nocase; distance:0; within:15; sid:1000006; rev:1; classtype:web-application-attack;)
 
-# --- Brute Force Login ---
-alert tcp any any -> $HTTP_SERVERS $HTTP_PORTS (\
-    msg:"[BruteForce] Login banyak request"; \
-    flow:to_server,established; \
-    content:"POST"; content:"/login"; \
-    detection_filter:track by_src, count 10, seconds 30; \
-    sid:1000020; rev:2; classtype:attempted-user;)
+# SQLi: DELETE FROM
+alert tcp any any -> any $HTTP_PORTS (msg:"[SQLi] DELETE FROM attempt"; content:"DELETE"; nocase; content:"FROM"; nocase; distance:0; within:15; sid:1000007; rev:1; classtype:web-application-attack;)
 
-# --- Buffer Overflow ---
-alert tcp any any -> $HTTP_SERVERS $HTTP_PORTS (\
-    msg:"[BufferOverflow] Payload sangat besar"; \
-    flow:to_server,established; \
-    dsize:>8192; \
-    sid:1000030; rev:1; classtype:attempted-dos;)
+# SQLi: SLEEP / BENCHMARK (time-based blind SQLi)
+alert tcp any any -> any $HTTP_PORTS (msg:"[SQLi] Time-based blind SQLi - SLEEP"; content:"SLEEP"; nocase; content:"("; distance:0; within:5; sid:1000008; rev:1; classtype:web-application-attack;)
 
-# --- Akses MySQL dari luar ---
-alert tcp $EXTERNAL_NET any -> $SQL_SERVERS 3306 (\
-    msg:"[DB] Akses MySQL tidak sah"; \
-    flow:to_server; \
-    sid:1000040; rev:1; classtype:attempted-user;)
+# SQLi: information_schema access
+alert tcp any any -> any $HTTP_PORTS (msg:"[SQLi] information_schema access"; content:"information_schema"; nocase; sid:1000009; rev:1; classtype:web-application-attack;)
 
-# --- Port Scan ---
-alert tcp any any -> $HOME_NET any (\
-    msg:"[Recon] TCP port scan"; \
-    flags:S; \
-    detection_filter:track by_src, count 20, seconds 5; \
-    sid:1000050; rev:1; classtype:attempted-recon;)
+# ===================
+# CROSS-SITE SCRIPTING (XSS)
+# ===================
 
-# --- Path Traversal ---
-alert tcp any any -> $HTTP_SERVERS $HTTP_PORTS (\
-    msg:"[LFI] Path traversal attempt"; \
-    flow:to_server,established; \
-    content:"../"; \
-    sid:1000060; rev:1; classtype:web-application-attack;)
+# XSS: <script tag
+alert tcp any any -> any $HTTP_PORTS (msg:"[XSS] Script tag detected"; content:"<script"; nocase; sid:1000010; rev:3; classtype:web-application-attack;)
+
+# XSS: </script tag
+alert tcp any any -> any $HTTP_PORTS (msg:"[XSS] Closing script tag detected"; content:"</script"; nocase; sid:1000013; rev:1; classtype:web-application-attack;)
+
+# XSS: onerror event handler
+alert tcp any any -> any $HTTP_PORTS (msg:"[XSS] onerror event handler"; content:"onerror"; nocase; content:"="; distance:0; within:5; sid:1000011; rev:2; classtype:web-application-attack;)
+
+# XSS: onload event handler
+alert tcp any any -> any $HTTP_PORTS (msg:"[XSS] onload event handler"; content:"onload"; nocase; content:"="; distance:0; within:5; sid:1000014; rev:1; classtype:web-application-attack;)
+
+# XSS: onclick event handler
+alert tcp any any -> any $HTTP_PORTS (msg:"[XSS] onclick event handler"; content:"onclick"; nocase; content:"="; distance:0; within:5; sid:1000015; rev:1; classtype:web-application-attack;)
+
+# XSS: onmouseover event handler
+alert tcp any any -> any $HTTP_PORTS (msg:"[XSS] onmouseover event handler"; content:"onmouseover"; nocase; content:"="; distance:0; within:5; sid:1000016; rev:1; classtype:web-application-attack;)
+
+# XSS: javascript: protocol
+alert tcp any any -> any $HTTP_PORTS (msg:"[XSS] javascript: protocol detected"; content:"javascript"; nocase; content:":"; distance:0; within:3; sid:1000012; rev:2; classtype:web-application-attack;)
+
+# XSS: alert() function
+alert tcp any any -> any $HTTP_PORTS (msg:"[XSS] alert() function detected"; content:"alert("; nocase; sid:1000017; rev:1; classtype:web-application-attack;)
+
+# XSS: document.cookie theft
+alert tcp any any -> any $HTTP_PORTS (msg:"[XSS] document.cookie access"; content:"document.cookie"; nocase; sid:1000018; rev:1; classtype:web-application-attack;)
+
+# XSS: eval() function
+alert tcp any any -> any $HTTP_PORTS (msg:"[XSS] eval() function detected"; content:"eval("; nocase; sid:1000019; rev:1; classtype:web-application-attack;)
+
+# ===================
+# BRUTE FORCE LOGIN
+# ===================
+alert tcp any any -> any $HTTP_PORTS (msg:"[BruteForce] Banyak POST /login dalam waktu singkat"; content:"POST"; content:"/login"; detection_filter:track by_src, count 10, seconds 30; sid:1000020; rev:3; classtype:attempted-user;)
+
+# ===================
+# BUFFER OVERFLOW
+# ===================
+alert tcp any any -> any $HTTP_PORTS (msg:"[BufferOverflow] Payload HTTP sangat besar (>8KB)"; dsize:>8192; sid:1000030; rev:2; classtype:attempted-dos;)
+
+# ===================
+# DATABASE ACCESS
+# ===================
+alert tcp any any -> any 3306 (msg:"[DB] Koneksi MySQL terdeteksi"; content:"|00 00 01|"; depth:5; sid:1000040; rev:2; classtype:attempted-user;)
+
+# ===================
+# PORT SCAN / RECON
+# ===================
+alert tcp any any -> any any (msg:"[Recon] TCP SYN port scan terdeteksi"; flags:S; detection_filter:track by_src, count 20, seconds 5; sid:1000050; rev:2; classtype:attempted-recon;)
+
+# ===================
+# PATH TRAVERSAL / LFI
+# ===================
+alert tcp any any -> any $HTTP_PORTS (msg:"[LFI] Path traversal ../ detected"; content:"../"; sid:1000060; rev:2; classtype:web-application-attack;)
+
+alert tcp any any -> any $HTTP_PORTS (msg:"[LFI] Path traversal ..%5c detected"; content:"..%5c"; nocase; sid:1000061; rev:1; classtype:web-application-attack;)
+
+# ===================
+# COMMAND INJECTION
+# ===================
+alert tcp any any -> any $HTTP_PORTS (msg:"[CMDi] Command injection - pipe |"; content:"|7c|"; content:"cat "; nocase; distance:0; within:20; sid:1000070; rev:1; classtype:web-application-attack;)
+
+alert tcp any any -> any $HTTP_PORTS (msg:"[CMDi] Command injection - /etc/passwd"; content:"/etc/passwd"; sid:1000071; rev:1; classtype:web-application-attack;)
+
+alert tcp any any -> any $HTTP_PORTS (msg:"[CMDi] Command injection - /bin/sh"; content:"/bin/sh"; sid:1000072; rev:1; classtype:web-application-attack;)

@@ -9,7 +9,12 @@ echo "[*] Applying ACL rules..."
 
 # Test Snort config dulu
 echo "[*] Testing SNORT config..."
-snort -T -c /etc/snort/snort.conf --daq-dir /usr/lib/daq 2>&1 | tail -5 || true
+snort -T -c /etc/snort/snort.conf --daq-dir /usr/lib/daq 2>&1 | tail -5
+SNORT_TEST=$?
+
+if [ $SNORT_TEST -ne 0 ]; then
+    echo "[WARN] Snort config test FAILED! Lihat error di atas."
+fi
 
 # Start SNORT di background
 echo "[*] Starting SNORT IDS..."
@@ -18,11 +23,11 @@ touch /var/log/snort/alert
 
 # List semua interfaces untuk debug
 echo "[*] Available network interfaces:"
-ip addr show | grep -E "^[0-9]+:|inet " || ifconfig 2>/dev/null || true
+ifconfig 2>/dev/null | grep -E "^[a-z]|inet " || ip addr show 2>/dev/null | grep -E "^[0-9]+:|inet " || true
 
 # Coba start Snort di setiap interface sampai berhasil
 SNORT_STARTED=false
-for IFACE in eth1 eth0 lo; do
+for IFACE in eth1 eth0; do
     echo "[*] Trying Snort on interface: $IFACE"
     snort \
       -i "$IFACE" \
@@ -32,21 +37,20 @@ for IFACE in eth1 eth0 lo; do
       --daq-dir /usr/lib/daq \
       > /var/log/snort/snort_stdout.log 2>/var/log/snort/snort_startup.log &
 
-    sleep 2
+    sleep 3
 
     if pgrep -x snort > /dev/null; then
         echo "[OK] SNORT is running on $IFACE (PID: $(pgrep -x snort))"
         SNORT_STARTED=true
         break
     else
-        echo "[FAIL] Snort gagal di $IFACE, coba interface lain..."
-        cat /var/log/snort/snort_startup.log 2>/dev/null || true
+        echo "[FAIL] Snort gagal di $IFACE"
+        cat /var/log/snort/snort_startup.log 2>/dev/null | tail -5 || true
     fi
 done
 
 if [ "$SNORT_STARTED" = false ]; then
     echo "[WARN] SNORT gagal start di semua interface!"
-    echo "[WARN] Startup log terakhir:"
     cat /var/log/snort/snort_startup.log 2>/dev/null || true
 fi
 
