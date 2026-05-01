@@ -58,7 +58,7 @@ echo "[*] Starting Reactive IPS watcher..."
 
 (
     # Whitelist IP yang tidak boleh di-block
-    WHITELIST="172.20.0.10 172.21.0.10 172.21.0.20 127.0.0.1"
+    WHITELIST="172.20.0.40 172.21.0.40 172.21.0.20 127.0.0.1"
 
     tail -F /var/log/snort/alert 2>/dev/null | while read -r line; do
         # Hanya proses alert yang mengandung [IPS-] (rule drop)
