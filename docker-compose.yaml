@@ -33,6 +33,10 @@ services:
   db:
     build: ./db
     container_name: 101032300243db_server
+    privileged: true
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
     networks:
       backend_net:
         ipv4_address: 172.21.0.20

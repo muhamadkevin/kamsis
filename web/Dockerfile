@@ -28,9 +28,10 @@ RUN apt-get update -o Acquire::Check-Valid-Until=false && \
     libnetfilter-queue1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Generate SSL cert
+# Generate SSL cert (menggunakan ECC - Elliptic Curve)
 RUN mkdir -p /app/certs && \
-    openssl req -x509 -nodes -days 365 -newkey rsa:4096 \
+    openssl req -x509 -nodes -days 365 \
+    -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 \
     -keyout /app/certs/key.pem \
     -out /app/certs/cert.pem \
     -subj "/C=ID/ST=Jakarta/L=Jakarta/O=Kamsis/CN=localhost"
